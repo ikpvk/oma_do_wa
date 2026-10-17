@@ -31,11 +31,6 @@ Right-click the bar icon to refresh. A dot on the icon means cached checks found
 Watched files and the last check results are kept in
 `~/.local/state/oma_do_wa/state.json`.
 
-This plugin used to be installed as `ikpvk.oma-do-wa`, and before that as Compose Monitor
-(`nausica.compose-monitor`). If you have either installed, remove it and install this one.
-Your watch list is read from the old `~/.local/state/ikpvk.oma-do-wa` or
-`~/.local/state/nausica.compose-monitor` folder until the plugin first saves to the new one.
-
 Requires: `docker` with the compose and buildx plugins, your user in the `docker` group,
 `python3`.
 

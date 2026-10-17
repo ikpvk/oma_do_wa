@@ -21,14 +21,11 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-STATE_HOME = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
-STATE_DIR = os.path.join(STATE_HOME, "oma_do_wa")
+STATE_DIR = os.path.join(
+    os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+    "oma_do_wa",
+)
 STATE_FILE = os.path.join(STATE_DIR, "state.json")
-# Where the plugin kept its state under its earlier IDs, newest first.
-LEGACY_STATE_FILES = [
-    os.path.join(STATE_HOME, old_id, "state.json")
-    for old_id in ("ikpvk.oma-do-wa", "nausica.compose-monitor")
-]
 SIZES_FILE = os.path.join(STATE_DIR, "sizes.json")
 REGISTRY_TIMEOUT_SEC = 30
 # `docker ps --size` walks every container's writable layer, so its result is
@@ -52,14 +49,11 @@ def fail(message):
 
 
 def load_state():
-    state = {}
-    for path in (STATE_FILE, *LEGACY_STATE_FILES):
-        try:
-            with open(path) as f:
-                state = json.load(f)
-            break
-        except (OSError, ValueError):
-            continue
+    try:
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        state = {}
     state.setdefault("files", [])
     state.setdefault("checks", {})
     return state

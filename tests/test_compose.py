@@ -44,8 +44,6 @@ class StateTestCase(unittest.TestCase):
             ("STATE_DIR", state_dir),
             ("STATE_FILE", os.path.join(state_dir, "state.json")),
             ("SIZES_FILE", os.path.join(state_dir, "sizes.json")),
-            ("LEGACY_STATE_FILES", [os.path.join(self.tmp.name, "legacy", name, "state.json")
-                                    for name in ("newer", "older")]),
         ):
             patcher = mock.patch.object(compose, name, value)
             patcher.start()
@@ -285,18 +283,6 @@ class WatchListTest(StateTestCase):
         self.assertEqual(compose.load_state()["files"], [path])
         self.capture(compose.remove, path)
         self.assertEqual(compose.load_state()["files"], [])
-
-    def test_reads_legacy_state_until_first_save(self):
-        path = self.touch("app/compose.yaml")
-        self.touch("legacy/older/state.json", json.dumps({"files": ["/old.yml"], "checks": {}}))
-        legacy = self.touch("legacy/newer/state.json", json.dumps({"files": [path], "checks": {}}))
-        self.assertEqual(compose.load_state()["files"], [path])
-        other = self.touch("other/compose.yaml")
-        self.capture(compose.add, [other])
-        self.assertEqual(compose.load_state()["files"], [path, other])
-        self.assertTrue(os.path.isfile(compose.STATE_FILE))
-        with open(legacy) as f:
-            self.assertEqual(json.load(f)["files"], [path])
 
     def test_add_rejects_missing_file(self):
         result = self.capture(compose.add, ["/nope.yml"])
