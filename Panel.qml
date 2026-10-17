@@ -9,8 +9,8 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "ikpvk.oma-do-wa"
-  ipcTarget: "ikpvk.oma-do-wa"
+  moduleName: "oma_do_wa"
+  ipcTarget: "oma_do_wa"
   manageIpc: false
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground

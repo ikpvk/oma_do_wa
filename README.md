@@ -29,10 +29,11 @@ An Omarchy shell bar widget that monitors only the docker-compose stacks you pic
 Right-click the bar icon to refresh. A dot on the icon means cached checks found updates.
 
 Watched files and the last check results are kept in
-`~/.local/state/ikpvk.oma-do-wa/state.json`.
+`~/.local/state/oma_do_wa/state.json`.
 
-This plugin used to be called Compose Monitor (`nausica.compose-monitor`). If you have that
-installed, remove it and install this one. Your watch list is read from the old
+This plugin used to be installed as `ikpvk.oma-do-wa`, and before that as Compose Monitor
+(`nausica.compose-monitor`). If you have either installed, remove it and install this one.
+Your watch list is read from the old `~/.local/state/ikpvk.oma-do-wa` or
 `~/.local/state/nausica.compose-monitor` folder until the plugin first saves to the new one.
 
 Requires: `docker` with the compose and buildx plugins, your user in the `docker` group,
@@ -42,7 +43,7 @@ Requires: `docker` with the compose and buildx plugins, your user in the `docker
 `python`. The helper (`compose.py`) uses only the standard library, so there is nothing to
 `pip install`.
 
-IPC: `omarchy-shell ikpvk.oma-do-wa toggle|refresh|updates`
+IPC: `omarchy-shell oma_do_wa toggle|refresh|updates`
 
 ## Tests
 
@@ -62,19 +63,19 @@ omarchy plugin add https://github.com/ikpvk/oma_do_wa.git --enable
 1. Remove the plugin (this also takes it off the bar):
 
    ```bash
-   omarchy plugin remove ikpvk.oma-do-wa
+   omarchy plugin remove oma_do_wa
    ```
 
 2. `remove` keeps a backup of the plugin folder. Delete it if you don't need it:
 
    ```bash
-   rm -rf ~/.config/omarchy/plugins/.ikpvk.oma-do-wa.bak.*
+   rm -rf ~/.config/omarchy/plugins/.oma_do_wa.bak.*
    ```
 
 3. Optionally delete the saved watch list and update-check results:
 
    ```bash
-   rm -rf ~/.local/state/ikpvk.oma-do-wa
+   rm -rf ~/.local/state/oma_do_wa
    ```
 
 Uninstalling never touches your compose stacks — containers, images and volumes stay as they are.

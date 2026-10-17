@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Docker Compose helper for the ikpvk.oma-do-wa plugin.
+"""Docker Compose helper for the oma_do_wa plugin.
 
 Every subcommand prints one JSON document on stdout so the QML side only ever
 has to JSON.parse a single blob. Watched compose files and the last update
-check per file live in $XDG_STATE_HOME/ikpvk.oma-do-wa/state.json.
+check per file live in $XDG_STATE_HOME/oma_do_wa/state.json.
 
   status            projects with their containers and CPU / RAM / disk usage
   pick              open the desktop file chooser and watch the chosen files
@@ -22,10 +22,13 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 STATE_HOME = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
-STATE_DIR = os.path.join(STATE_HOME, "ikpvk.oma-do-wa")
+STATE_DIR = os.path.join(STATE_HOME, "oma_do_wa")
 STATE_FILE = os.path.join(STATE_DIR, "state.json")
-# Where the plugin kept its state under its old ID, nausica.compose-monitor.
-LEGACY_STATE_FILE = os.path.join(STATE_HOME, "nausica.compose-monitor", "state.json")
+# Where the plugin kept its state under its earlier IDs, newest first.
+LEGACY_STATE_FILES = [
+    os.path.join(STATE_HOME, old_id, "state.json")
+    for old_id in ("ikpvk.oma-do-wa", "nausica.compose-monitor")
+]
 SIZES_FILE = os.path.join(STATE_DIR, "sizes.json")
 REGISTRY_TIMEOUT_SEC = 30
 # `docker ps --size` walks every container's writable layer, so its result is
@@ -50,7 +53,7 @@ def fail(message):
 
 def load_state():
     state = {}
-    for path in (STATE_FILE, LEGACY_STATE_FILE):
+    for path in (STATE_FILE, *LEGACY_STATE_FILES):
         try:
             with open(path) as f:
                 state = json.load(f)

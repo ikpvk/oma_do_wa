@@ -44,7 +44,8 @@ class StateTestCase(unittest.TestCase):
             ("STATE_DIR", state_dir),
             ("STATE_FILE", os.path.join(state_dir, "state.json")),
             ("SIZES_FILE", os.path.join(state_dir, "sizes.json")),
-            ("LEGACY_STATE_FILE", os.path.join(self.tmp.name, "legacy", "state.json")),
+            ("LEGACY_STATE_FILES", [os.path.join(self.tmp.name, "legacy", name, "state.json")
+                                    for name in ("newer", "older")]),
         ):
             patcher = mock.patch.object(compose, name, value)
             patcher.start()
@@ -287,7 +288,8 @@ class WatchListTest(StateTestCase):
 
     def test_reads_legacy_state_until_first_save(self):
         path = self.touch("app/compose.yaml")
-        legacy = self.touch("legacy/state.json", json.dumps({"files": [path], "checks": {}}))
+        self.touch("legacy/older/state.json", json.dumps({"files": ["/old.yml"], "checks": {}}))
+        legacy = self.touch("legacy/newer/state.json", json.dumps({"files": [path], "checks": {}}))
         self.assertEqual(compose.load_state()["files"], [path])
         other = self.touch("other/compose.yaml")
         self.capture(compose.add, [other])
