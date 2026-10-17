@@ -2,15 +2,15 @@
 
 An Omarchy shell bar widget that monitors only the docker-compose stacks you pick.
 
-- **Add** a compose file with the 󰐕 button (or `a`) — opens the desktop file chooser.
+- **Add** a compose file with the **+** button in the panel header (or press `a`) — opens the desktop file chooser.
 - Each stack lists its containers with **CPU**, **RAM** and **disk** (container writable
   layer; hover a row for the image size). Refreshes every `refreshIntervalSec` while open.
-- **󰚰 Check updates** compares each service's local image digest with the registry
+- **Check updates** (circular-arrow button) compares each service's local image digest with the registry
   (`docker buildx imagetools inspect`). Digest-pinned images and locally built services
   are reported but never updated.
-- **󰇚 Update** appears when updates exist: runs `docker compose pull --ignore-buildable`
+- **Update** (download-arrow button) appears when updates exist: runs `docker compose pull --ignore-buildable`
   then `docker compose up -d --remove-orphans`, which recreates only changed containers.
-- **󰆴** stops watching the stack (containers are untouched).
+- **Stop watching** (trash-can button) stops monitoring the stack (containers are untouched).
 
 Right-click the bar icon to refresh. A dot on the icon means cached checks found updates.
 
