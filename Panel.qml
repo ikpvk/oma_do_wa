@@ -159,7 +159,7 @@ Panel {
       Item {
         Text {
           anchors.centerIn: parent
-          text: "\uDB82\uDC68" // nf-md-docker (U+F0868)
+          text: "\uDB86\uDCD8" // nf-md-truck_cargo_container (U+F18D8)
           color: root.bar ? root.bar.foreground : root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.space(14)
@@ -226,7 +226,7 @@ Panel {
             fontFamily: root.fontFamily
             iconComponent: Component {
               Text {
-                text: "\uDB82\uDC68"
+                text: "\uDB86\uDCD8"
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
