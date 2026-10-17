@@ -6,6 +6,11 @@ An Omarchy shell bar widget that monitors only the docker-compose stacks you pic
 - Each stack lists its containers with **CPU**, **RAM** and **disk** (container writable
   layer; hover a row for the image size). Refreshes every `refreshIntervalSec` while open;
   disk sizes are recomputed at most once a minute because they are slow to measure.
+- Next to each container's name is the **version** of its image, since tags like `latest` or
+  `v3` say little. It comes from the image's `org.opencontainers.image.version` label, then
+  an environment variable named after the image (e.g. `VALKEY_VERSION` for `valkey`), then
+  the tag. Hover a row for the full image reference. A base image's label can be inherited
+  by images that don't set their own, so an odd-looking version may belong to the base.
 - An override file next to the compose file (`compose.override.yaml` for `compose.yaml`,
   `docker-compose.override.yml` for `docker-compose.yml`, and so on) is applied, just as a
   plain `docker compose` run would.
