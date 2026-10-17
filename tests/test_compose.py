@@ -153,12 +153,17 @@ class StatusTest(StateTestCase):
             (has("compose", "ps"), (0, ps, "")),
             (has("stats"), (0, '{"ID": "aaaaaaaaaaaa", "CPUPerc": "2.5%", "MemUsage": "10MiB / 1GiB", "MemPerc": "1%"}', "")),
             (has("--size"), (0, '{"ID": "aaaaaaaaaaaa", "Size": "1kB"}\n{"ID": "bbbbbbbbbbbb", "Size": "2kB"}', "")),
+            (has("inspect"), (1, json.dumps([{"Id": "aaaaaaaaaaaaXX", "Config": {
+                "Image": "nginx:latest", "Labels": {"org.opencontainers.image.version": "1.27.3"}}}]),
+                "Error: No such object: bbbbbbbbbbbb")),
         ])
         with mock.patch.object(compose, "run", fake):
             result = self.capture(compose.status)
         web, db = result["projects"][0]["containers"]
         self.assertEqual((web["cpu"], web["memUsage"], web["disk"]), (2.5, "10MiB / 1GiB", "1kB"))
         self.assertEqual((db["cpu"], db["memUsage"], db["disk"]), (0.0, "", "2kB"))
+        self.assertEqual((web["image"], web["version"]), ("nginx:latest", "1.27.3"))
+        self.assertEqual(db["version"], "")
         stats_call = next(c for c in fake.calls if "stats" in c)
         self.assertNotIn("bbbbbbbbbbbb", stats_call)
 
@@ -167,6 +172,28 @@ class StatusTest(StateTestCase):
         with mock.patch.object(compose, "run", FakeDocker([])):
             result = self.capture(compose.status)
         self.assertEqual(result["projects"][0]["error"], "Compose file not found")
+
+
+class ImageVersionTest(unittest.TestCase):
+    def test_tag(self):
+        self.assertEqual(compose.image_tag("ghcr.io/immich-app/immich-server:v3"), "v3")
+        self.assertEqual(compose.image_tag("docker.io/valkey/valkey:9@sha256:abc"), "9")
+        self.assertEqual(compose.image_tag("localhost:5000/app"), "")
+        self.assertEqual(compose.image_tag("redis@sha256:abc"), "")
+
+    def test_prefers_oci_label(self):
+        labels = {"org.opencontainers.image.version": "v3.3.3"}
+        self.assertEqual(compose.image_version("ghcr.io/immich-app/immich-server:v3", labels, []), "v3.3.3")
+
+    def test_falls_back_to_image_env_var(self):
+        env = ["PATH=/usr/bin", "GOSU_VERSION=1.17", "VALKEY_VERSION=9.1.1"]
+        self.assertEqual(compose.image_version("docker.io/valkey/valkey:9@sha256:abc", {}, env), "9.1.1")
+        env = ["NODE_RED_VERSION=4.0.2"]
+        self.assertEqual(compose.image_version("nodered/node-red:latest", None, env), "4.0.2")
+
+    def test_falls_back_to_tag(self):
+        self.assertEqual(compose.image_version("jellyfin/jellyfin:latest", {}, ["GOSU_VERSION=1.17"]), "latest")
+        self.assertEqual(compose.image_version("redis@sha256:abc", None, None), "")
 
 
 class CheckTest(StateTestCase):

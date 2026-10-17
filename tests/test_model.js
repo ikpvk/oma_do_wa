@@ -40,6 +40,16 @@ test("container text helpers", () => {
   assert.equal(Model.diskVirtualText({ disk: "1kB" }), "")
 })
 
+test("versionText and containerTooltip", () => {
+  const c = { service: "web", image: "nginx:latest", version: " 1.27.3 ", disk: "1kB (virtual 2MB)" }
+  assert.equal(Model.versionText(c), "1.27.3")
+  assert.equal(Model.versionText({}), "")
+  assert.equal(Model.containerTooltip(c),
+    "Service web\nImage nginx:latest\nImage size 1.9 MiB · Disk = container writable layer")
+  assert.equal(Model.containerTooltip({ service: "db" }), "Service db")
+  assert.equal(Model.containerTooltip(null), "")
+})
+
 test("projectSummary", () => {
   assert.equal(Model.projectSummary({ error: "boom", containers: [] }), "boom")
   assert.equal(Model.projectSummary({ containers: [] }), "No containers — stack is down")

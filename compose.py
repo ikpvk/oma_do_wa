@@ -142,6 +142,53 @@ def container_stats(ids):
     return {row.get("ID", "")[:12]: row for row in json_lines(out)}
 
 
+def image_tag(ref):
+    """"ghcr.io/a/b:v3@sha256:..." → "v3"; "" when the reference has no tag."""
+    name = ref.split("@", 1)[0]
+    last = name.rsplit("/", 1)[-1]
+    return last.split(":", 1)[1] if ":" in last else ""
+
+
+def image_version(ref, labels, env):
+    """Best guess at the version an image runs.
+
+    Tags like "latest" or "v3" rarely say much, so prefer the OCI version
+    label, then a <IMAGE>_VERSION env var (e.g. VALKEY_VERSION for valkey),
+    then the tag.
+    """
+    version = (labels or {}).get("org.opencontainers.image.version", "").strip()
+    if version:
+        return version
+    base = ref.split("@", 1)[0].rsplit("/", 1)[-1].split(":", 1)[0]
+    key = base.upper().replace("-", "_").replace(".", "_") + "_VERSION="
+    for var in env or []:
+        if var.startswith(key) and var[len(key):].strip():
+            return var[len(key):].strip()
+    return image_tag(ref)
+
+
+def container_images(ids):
+    """Image reference and version per short container ID."""
+    if not ids:
+        return {}
+    _, out, _ = run(["docker", "inspect", *ids])
+    # docker inspect exits non-zero if any ID has gone away but still prints
+    # the ones it found.
+    try:
+        rows = json.loads(out or "[]")
+    except ValueError:
+        return {}
+    images = {}
+    for row in rows:
+        config = row.get("Config") or {}
+        ref = config.get("Image", "")
+        images[row.get("Id", "")[:12]] = {
+            "image": ref,
+            "version": image_version(ref, config.get("Labels"), config.get("Env")),
+        }
+    return images
+
+
 def container_sizes(ids):
     """`docker ps --size` output keyed by short ID, cached for SIZES_MAX_AGE_SEC."""
     if not ids:
@@ -210,6 +257,8 @@ def status():
                 "memUsage": "",
                 "memPercent": 0.0,
                 "disk": "",
+                "image": row.get("Image", ""),
+                "version": "",
             })
             if row.get("ID"):
                 ids.append(row["ID"])
@@ -218,10 +267,11 @@ def status():
 
     # docker stats --no-stream samples for ~2s; run it alongside the size
     # query instead of after it.
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         stats_job = pool.submit(container_stats, running_ids)
         sizes_job = pool.submit(container_sizes, ids)
-        stats, sizes = stats_job.result(), sizes_job.result()
+        images_job = pool.submit(container_images, ids)
+        stats, sizes, images = stats_job.result(), sizes_job.result(), images_job.result()
 
     for project in projects:
         for c in project["containers"]:
@@ -232,6 +282,10 @@ def status():
                 c["memUsage"] = s.get("MemUsage", "")
                 c["memPercent"] = percent(s.get("MemPerc"))
             c["disk"] = sizes.get(short, "")
+            image = images.get(short)
+            if image:
+                c["image"] = image["image"] or c["image"]
+                c["version"] = image["version"]
 
     emit({"ok": True, "projects": projects})
 

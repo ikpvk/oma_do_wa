@@ -416,14 +416,33 @@ Panel {
         Layout.fillWidth: true
         spacing: Style.space(1)
 
-        Text {
-          textFormat: Text.PlainText
+        RowLayout {
           Layout.fillWidth: true
-          text: row.container ? row.container.name : ""
-          color: row.up ? root.foreground : root.dim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.body
-          elide: Text.ElideRight
+          spacing: Style.space(6)
+
+          Text {
+            textFormat: Text.PlainText
+            // Names win over versions: the version only gets what is left.
+            Layout.maximumWidth: implicitWidth
+            Layout.fillWidth: true
+            text: row.container ? row.container.name : ""
+            color: row.up ? root.foreground : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            elide: Text.ElideRight
+          }
+          Text {
+            textFormat: Text.PlainText
+            visible: text !== ""
+            Layout.fillWidth: true
+            Layout.preferredWidth: 0
+            Layout.alignment: Qt.AlignBaseline
+            text: Model.versionText(row.container)
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+          }
         }
         Text {
           textFormat: Text.PlainText
@@ -440,9 +459,8 @@ Panel {
     }
 
     PanelToolTip {
-      visible: rowHover.containsMouse && Model.diskVirtualText(row.container) !== ""
-      text: "Service " + (row.container ? row.container.service : "") + " · image " + Model.diskVirtualText(row.container)
-        + "\nDisk = container writable layer"
+      visible: rowHover.containsMouse && text !== ""
+      text: Model.containerTooltip(row.container)
       fontFamily: root.fontFamily
     }
   }

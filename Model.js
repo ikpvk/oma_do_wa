@@ -52,6 +52,20 @@ function diskVirtualText(container) {
   return m ? formatBytes(toBytes(m[1])) : ""
 }
 
+function versionText(container) {
+  return String(container && container.version || "").trim()
+}
+
+// Row hover text: service, full image reference, image size.
+function containerTooltip(container) {
+  if (!container) return ""
+  var lines = ["Service " + (container.service || "?")]
+  if (container.image) lines.push("Image " + container.image)
+  var size = diskVirtualText(container)
+  if (size) lines.push("Image size " + size + " · Disk = container writable layer")
+  return lines.join("\n")
+}
+
 function running(container) {
   return container && container.state === "running"
 }
