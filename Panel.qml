@@ -329,7 +329,7 @@ Panel {
       }
 
       PanelActionButton {
-        iconText: block.busyHere && root.jobKind === "check" ? "󰔟" : "󰚰"
+        iconText: block.busyHere && root.jobKind === "check" ? "󰔟" : "󰑐"
         tooltipText: "Check for image updates"
         foreground: root.foreground
         fontFamily: root.fontFamily
