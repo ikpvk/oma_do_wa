@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "nausica.compose-monitor",
-  "name": "Compose Monitor",
+  "id": "ikpvk.oma-do-wa",
+  "name": "Oma-do-wa",
   "version": "0.1.0",
   "author": "ikpvk",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "Compose Monitor",
+    "displayName": "Oma-do-wa",
     "description": "CPU, RAM and disk for the containers of selected docker-compose files, with image update checks.",
     "category": "System",
     "allowMultiple": false,

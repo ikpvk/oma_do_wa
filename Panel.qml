@@ -9,8 +9,8 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "nausica.compose-monitor"
-  ipcTarget: "nausica.compose-monitor"
+  moduleName: "ikpvk.oma-do-wa"
+  ipcTarget: "ikpvk.oma-do-wa"
   manageIpc: false
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
@@ -227,7 +227,7 @@ Panel {
           PanelHero {
             id: hero
             width: parent.width
-            title: "Compose"
+            title: "Oma-do-wa"
             meta: root.projects.length === 0
               ? "No stacks watched"
               : root.projects.length + " stack(s)" + (root.updateCount > 0 ? " · " + root.updateCount + " update(s)" : "")
