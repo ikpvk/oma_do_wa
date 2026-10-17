@@ -25,7 +25,11 @@ STATE_DIR = os.path.join(
     "nausica.compose-monitor",
 )
 STATE_FILE = os.path.join(STATE_DIR, "state.json")
+SIZES_FILE = os.path.join(STATE_DIR, "sizes.json")
 REGISTRY_TIMEOUT_SEC = 30
+# `docker ps --size` walks every container's writable layer, so its result is
+# reused for this long instead of being recomputed on every refresh.
+SIZES_MAX_AGE_SEC = 60
 
 
 def run(args, timeout=60):
@@ -54,12 +58,16 @@ def load_state():
     return state
 
 
-def save_state(state):
+def write_json(path, value):
     os.makedirs(STATE_DIR, exist_ok=True)
-    tmp = STATE_FILE + ".tmp"
+    tmp = path + ".tmp"
     with open(tmp, "w") as f:
-        json.dump(state, f, indent=2)
-    os.replace(tmp, STATE_FILE)
+        json.dump(value, f, indent=2)
+    os.replace(tmp, path)
+
+
+def save_state(state):
+    write_json(STATE_FILE, state)
 
 
 def json_lines(text):
@@ -72,8 +80,25 @@ def json_lines(text):
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
+def compose_files(path):
+    """The watched file plus its override file, if one sits next to it.
+
+    An explicit `-f` stops docker compose from loading `*.override.yml` on its
+    own, so it is passed explicitly to match a plain `docker compose` run.
+    """
+    stem, ext = os.path.splitext(path)
+    files = [path]
+    for candidate_ext in dict.fromkeys((ext, ".yaml", ".yml")):
+        override = stem + ".override" + candidate_ext
+        if os.path.isfile(override):
+            files.append(override)
+            break
+    return files
+
+
 def compose(path, *args, timeout=60):
-    return run(["docker", "compose", "-f", path, *args], timeout=timeout)
+    flags = [arg for f in compose_files(path) for arg in ("-f", f)]
+    return run(["docker", "compose", *flags, *args], timeout=timeout)
 
 
 def compose_config(path):
@@ -93,6 +118,52 @@ def percent(text):
         return 0.0
 
 
+def container_stats(ids):
+    """`docker stats` for running containers, keyed by short ID.
+
+    docker stats fails outright if any ID has gone away since `compose ps`, so
+    on failure retry once with only the IDs that are still running.
+    """
+    if not ids:
+        return {}
+    code, out, _ = run(["docker", "stats", "--no-stream", "--format", "json", *ids])
+    if code != 0:
+        code, out, _ = run(["docker", "ps", "-q", "--no-trunc"])
+        alive = {cid[:12] for cid in out.split()} if code == 0 else set()
+        ids = [cid for cid in ids if cid[:12] in alive]
+        if not ids:
+            return {}
+        code, out, _ = run(["docker", "stats", "--no-stream", "--format", "json", *ids])
+        if code != 0:
+            return {}
+    return {row.get("ID", "")[:12]: row for row in json_lines(out)}
+
+
+def container_sizes(ids):
+    """`docker ps --size` output keyed by short ID, cached for SIZES_MAX_AGE_SEC."""
+    if not ids:
+        return {}
+    wanted = {cid[:12] for cid in ids}
+    try:
+        with open(SIZES_FILE) as f:
+            cache = json.load(f)
+        if (time.time() - cache["at"] < SIZES_MAX_AGE_SEC
+                and wanted <= set(cache["sizes"])):
+            return cache["sizes"]
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    filters = [arg for cid in ids for arg in ("--filter", "id=" + cid)]
+    code, out, _ = run(["docker", "ps", "-a", "--size", "--no-trunc", "--format", "json", *filters])
+    if code != 0:
+        return {}
+    sizes = {row.get("ID", "")[:12]: row.get("Size", "") for row in json_lines(out)}
+    try:
+        write_json(SIZES_FILE, {"at": time.time(), "sizes": sizes})
+    except OSError:
+        pass
+    return sizes
+
+
 def project_containers(path):
     code, out, err = compose(path, "ps", "-a", "--format", "json")
     if code != 0:
@@ -103,7 +174,7 @@ def project_containers(path):
 def status():
     state = load_state()
     projects = []
-    ids = []
+    ids, running_ids = [], []
 
     for path in state["files"]:
         project = {
@@ -139,23 +210,15 @@ def status():
             })
             if row.get("ID"):
                 ids.append(row["ID"])
+                if row.get("State") == "running":
+                    running_ids.append(row["ID"])
 
-    stats, sizes = {}, {}
-    if ids:
-        # docker stats --no-stream samples for ~2s; run it alongside the size
-        # query instead of after it.
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            stats_job = pool.submit(run, ["docker", "stats", "--no-stream", "--format", "json", *ids])
-            filters = [arg for cid in ids for arg in ("--filter", "id=" + cid)]
-            sizes_job = pool.submit(run, ["docker", "ps", "-a", "--size", "--no-trunc", "--format", "json", *filters])
-            code, out, _ = stats_job.result()
-            if code == 0:
-                for row in json_lines(out):
-                    stats[row.get("ID", "")[:12]] = row
-            code, out, _ = sizes_job.result()
-            if code == 0:
-                for row in json_lines(out):
-                    sizes[row.get("ID", "")[:12]] = row.get("Size", "")
+    # docker stats --no-stream samples for ~2s; run it alongside the size
+    # query instead of after it.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        stats_job = pool.submit(container_stats, running_ids)
+        sizes_job = pool.submit(container_sizes, ids)
+        stats, sizes = stats_job.result(), sizes_job.result()
 
     for project in projects:
         for c in project["containers"]:
@@ -285,14 +348,21 @@ def update(path):
     code, out, err = compose(path, "pull", "--ignore-buildable", timeout=1800)
     if code != 0:
         fail(err.splitlines()[-1] if err else "docker compose pull failed")
-    # `up -d` only recreates containers whose image or config changed.
-    code, out, err = compose(path, "up", "-d", "--remove-orphans", timeout=900)
+    # Recreate only services that are running now, so stopped services stay
+    # stopped; `up -d` leaves them alone unless their image or config changed.
+    # No --remove-orphans: another compose file may share this project name.
+    code, out, err = compose(path, "ps", "--services", "--filter", "status=running")
     if code != 0:
-        fail(err.splitlines()[-1] if err else "docker compose up failed")
+        fail(err.splitlines()[-1] if err else "docker compose ps failed")
+    services = [s for s in out.split() if s]
+    if services:
+        code, out, err = compose(path, "up", "-d", *services, timeout=900)
+        if code != 0:
+            fail(err.splitlines()[-1] if err else "docker compose up failed")
     state = load_state()
     state["checks"].pop(path, None)
     save_state(state)
-    emit({"ok": True, "file": path})
+    emit({"ok": True, "file": path, "restarted": services})
 
 
 def main(argv):

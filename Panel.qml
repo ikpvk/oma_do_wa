@@ -23,6 +23,9 @@ Panel {
   property bool loaded: false
   property string lastError: ""
   property string actionStatus: ""
+  // A refresh asked for while one is in flight (e.g. right after a job) runs
+  // once that one finishes, so the panel never keeps pre-job data.
+  property bool refreshPending: false
 
   // One docker job (pick / remove / check / update) at a time; the row that
   // owns it shows its progress and every other action button is disabled.
@@ -46,7 +49,11 @@ Panel {
   }
 
   function refresh() {
-    if (statusProcess.running) return
+    if (statusProcess.running) {
+      refreshPending = true
+      return
+    }
+    refreshPending = false
     statusProcess.command = ["python3", helperPath, "status"]
     statusProcess.running = true
   }
@@ -114,6 +121,7 @@ Panel {
       } else if (!root.jobRunning) {
         root.lastError = root.elide(parsed.error || statusStderr.text || "Could not read docker status")
       }
+      if (root.refreshPending) Qt.callLater(root.refresh)
     }
   }
 
@@ -126,7 +134,8 @@ Panel {
       var parsed = Model.parseJson(jobStdout.text)
       if (exitCode === 0 && parsed.ok) {
         root.lastError = ""
-        if (root.jobKind === "update") root.actionStatus = "Updated and restarted"
+        if (root.jobKind === "update") root.actionStatus = (parsed.restarted || []).length > 0
+          ? "Pulled and restarted " + parsed.restarted.join(", ") : "Pulled images · no running services to restart"
         else if (root.jobKind === "check") root.actionStatus = parsed.check && parsed.check.updates > 0
           ? parsed.check.updates + " update(s) available" : "Everything is up to date"
         else root.actionStatus = ""
