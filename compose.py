@@ -15,6 +15,7 @@ check per file live in $XDG_STATE_HOME/ikpvk.oma-do-wa/state.json.
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -149,22 +150,48 @@ def image_tag(ref):
     return last.split(":", 1)[1] if ":" in last else ""
 
 
-def image_version(ref, labels, env):
-    """Best guess at the version an image runs.
+VERSION_NUMBER = re.compile(r"v?\d+(?:\.\d+)*")
 
-    Tags like "latest" or "v3" rarely say much, so prefer the OCI version
-    label, then a <IMAGE>_VERSION env var (e.g. VALKEY_VERSION for valkey),
-    then the tag.
+
+def short_version(text):
+    """Leading version number: "14-vectorchord0.4.3" → "14", "1.27.3-alpine"
+    → "1.27.3". Text that doesn't start with one ("latest") is kept whole."""
+    m = VERSION_NUMBER.match(text)
+    return m.group(0) if m else text
+
+
+def refines(precise, rough):
+    """True if `precise` is a more exact form of `rough` (14.19 of 14)."""
+    return precise.lstrip("v").startswith(rough.lstrip("v") + ".")
+
+
+def image_version(ref, labels, env):
+    """(short, full) version of the image a container runs.
+
+    Tags like "latest" or "v3" rarely say much, so the full version is the
+    OCI version label, else a <IMAGE>_VERSION env var (e.g. VALKEY_VERSION
+    for valkey; PG_VERSION for postgres images), else the tag. The short one
+    is its leading version number, made more exact by a later source that
+    agrees with it: immich's postgres label "14-vectorchord0.4.3-..." plus
+    PG_VERSION=14.19-1.pgdg12+1 gives "14.19".
     """
-    version = (labels or {}).get("org.opencontainers.image.version", "").strip()
-    if version:
-        return version
     base = ref.split("@", 1)[0].rsplit("/", 1)[-1].split(":", 1)[0]
-    key = base.upper().replace("-", "_").replace(".", "_") + "_VERSION="
-    for var in env or []:
-        if var.startswith(key) and var[len(key):].strip():
-            return var[len(key):].strip()
-    return image_tag(ref)
+    keys = [base.upper().replace("-", "_").replace(".", "_") + "_VERSION="]
+    if "postgres" in base or "postgis" in base:
+        keys.append("PG_VERSION=")
+    candidates = [(labels or {}).get("org.opencontainers.image.version", "")]
+    for key in keys:
+        candidates += [var[len(key):] for var in env or [] if var.startswith(key)]
+    candidates.append(image_tag(ref))
+    candidates = [c.strip() for c in candidates if c and c.strip()]
+    if not candidates:
+        return "", ""
+    full = candidates[0]
+    short = short_version(full)
+    for candidate in candidates[1:]:
+        if refines(short_version(candidate), short):
+            short = short_version(candidate)
+    return short, full
 
 
 def container_images(ids):
@@ -182,10 +209,8 @@ def container_images(ids):
     for row in rows:
         config = row.get("Config") or {}
         ref = config.get("Image", "")
-        images[row.get("Id", "")[:12]] = {
-            "image": ref,
-            "version": image_version(ref, config.get("Labels"), config.get("Env")),
-        }
+        short, full = image_version(ref, config.get("Labels"), config.get("Env"))
+        images[row.get("Id", "")[:12]] = {"image": ref, "version": short, "versionFull": full}
     return images
 
 
@@ -259,6 +284,7 @@ def status():
                 "disk": "",
                 "image": row.get("Image", ""),
                 "version": "",
+                "versionFull": "",
             })
             if row.get("ID"):
                 ids.append(row["ID"])
@@ -286,6 +312,7 @@ def status():
             if image:
                 c["image"] = image["image"] or c["image"]
                 c["version"] = image["version"]
+                c["versionFull"] = image["versionFull"]
 
     emit({"ok": True, "projects": projects})
 

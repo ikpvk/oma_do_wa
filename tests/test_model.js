@@ -47,6 +47,8 @@ test("versionText and containerTooltip", () => {
   assert.equal(Model.containerTooltip(c),
     "Service web\nImage nginx:latest\nImage size 1.9 MiB · Disk = container writable layer")
   assert.equal(Model.containerTooltip({ service: "db" }), "Service db")
+  assert.equal(Model.containerTooltip({ service: "db", version: "14.19", versionFull: "14-vectorchord0.4.3" }),
+    "Service db\nVersion 14-vectorchord0.4.3")
   assert.equal(Model.containerTooltip(null), "")
 })
 

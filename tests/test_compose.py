@@ -181,19 +181,41 @@ class ImageVersionTest(unittest.TestCase):
         self.assertEqual(compose.image_tag("localhost:5000/app"), "")
         self.assertEqual(compose.image_tag("redis@sha256:abc"), "")
 
+    def test_short_version(self):
+        self.assertEqual(compose.short_version("14-vectorchord0.4.3-pgvectors0.2.0"), "14")
+        self.assertEqual(compose.short_version("1.27.3-alpine"), "1.27.3")
+        self.assertEqual(compose.short_version("v3.3.3"), "v3.3.3")
+        self.assertEqual(compose.short_version("latest"), "latest")
+
     def test_prefers_oci_label(self):
         labels = {"org.opencontainers.image.version": "v3.3.3"}
-        self.assertEqual(compose.image_version("ghcr.io/immich-app/immich-server:v3", labels, []), "v3.3.3")
+        self.assertEqual(compose.image_version("ghcr.io/immich-app/immich-server:v3", labels, []),
+                         ("v3.3.3", "v3.3.3"))
 
     def test_falls_back_to_image_env_var(self):
         env = ["PATH=/usr/bin", "GOSU_VERSION=1.17", "VALKEY_VERSION=9.1.1"]
-        self.assertEqual(compose.image_version("docker.io/valkey/valkey:9@sha256:abc", {}, env), "9.1.1")
+        self.assertEqual(compose.image_version("docker.io/valkey/valkey:9@sha256:abc", {}, env),
+                         ("9.1.1", "9.1.1"))
         env = ["NODE_RED_VERSION=4.0.2"]
-        self.assertEqual(compose.image_version("nodered/node-red:latest", None, env), "4.0.2")
+        self.assertEqual(compose.image_version("nodered/node-red:latest", None, env), ("4.0.2", "4.0.2"))
 
     def test_falls_back_to_tag(self):
-        self.assertEqual(compose.image_version("jellyfin/jellyfin:latest", {}, ["GOSU_VERSION=1.17"]), "latest")
-        self.assertEqual(compose.image_version("redis@sha256:abc", None, None), "")
+        self.assertEqual(compose.image_version("jellyfin/jellyfin:latest", {}, ["GOSU_VERSION=1.17"]),
+                         ("latest", "latest"))
+        self.assertEqual(compose.image_version("nginx:1.27.3-alpine", None, None), ("1.27.3", "1.27.3-alpine"))
+        self.assertEqual(compose.image_version("redis@sha256:abc", None, None), ("", ""))
+
+    def test_postgres_label_is_refined_by_pg_version(self):
+        labels = {"org.opencontainers.image.version": "14-vectorchord0.4.3-pgvector0.8.1-pgvectors0.2.0"}
+        env = ["GOSU_VERSION=1.17", "PG_MAJOR=14", "PG_VERSION=14.19-1.pgdg12+1"]
+        self.assertEqual(
+            compose.image_version("ghcr.io/immich-app/postgres:14-vectorchord0.4.3@sha256:abc", labels, env),
+            ("14.19", "14-vectorchord0.4.3-pgvector0.8.1-pgvectors0.2.0"))
+
+    def test_refinement_must_agree(self):
+        labels = {"org.opencontainers.image.version": "2.1"}
+        self.assertEqual(compose.image_version("app/app:3.0.4", labels, []), ("2.1", "2.1"))
+        self.assertEqual(compose.image_version("app/app:2.1.7", labels, []), ("2.1.7", "2.1"))
 
 
 class CheckTest(StateTestCase):

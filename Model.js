@@ -61,6 +61,8 @@ function containerTooltip(container) {
   if (!container) return ""
   var lines = ["Service " + (container.service || "?")]
   if (container.image) lines.push("Image " + container.image)
+  var full = String(container.versionFull || "").trim()
+  if (full && full !== versionText(container)) lines.push("Version " + full)
   var size = diskVirtualText(container)
   if (size) lines.push("Image size " + size + " · Disk = container writable layer")
   return lines.join("\n")

@@ -8,9 +8,12 @@ An Omarchy shell bar widget that monitors only the docker-compose stacks you pic
   disk sizes are recomputed at most once a minute because they are slow to measure.
 - Next to each container's name is the **version** of its image, since tags like `latest` or
   `v3` say little. It comes from the image's `org.opencontainers.image.version` label, then
-  an environment variable named after the image (e.g. `VALKEY_VERSION` for `valkey`), then
-  the tag. Hover a row for the full image reference. A base image's label can be inherited
-  by images that don't set their own, so an odd-looking version may belong to the base.
+  an environment variable named after the image (e.g. `VALKEY_VERSION` for `valkey`,
+  `PG_VERSION` for postgres images), then the tag. Only the leading version number is shown,
+  made more exact by a later source that agrees with it: a label like
+  `14-vectorchord0.4.3-pgvector0.8.1` with `PG_VERSION=14.19-1.pgdg12+1` shows as `14.19`.
+  Hover a row for the full version string and image reference. A base image's label can be
+  inherited by images that don't set their own, so an odd-looking version may belong to the base.
 - An override file next to the compose file (`compose.override.yaml` for `compose.yaml`,
   `docker-compose.override.yml` for `docker-compose.yml`, and so on) is applied, just as a
   plain `docker compose` run would.
