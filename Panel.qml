@@ -163,7 +163,7 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    tooltipText: root.updateCount > 0 ? "Compose: " + root.updateCount + " image update(s)" : "Compose stacks"
+    tooltipText: root.updateCount > 0 ? "Oma-do-wa: " + root.updateCount + " image update(s)" : "Oma-do-wa"
     iconComponent: Component {
       Item {
         Text {
