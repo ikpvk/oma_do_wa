@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "nausica.compose-monitor",
+  "name": "Compose Monitor",
+  "version": "0.1.0",
+  "author": "nausica",
+  "license": "MIT",
+  "description": "Watch chosen docker-compose stacks: per-container CPU, RAM and disk usage, plus image update checks with one-click pull and restart.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Compose Monitor",
+    "description": "CPU, RAM and disk for the containers of selected docker-compose files, with image update checks.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 5
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval while open (seconds)",
+        "min": 2,
+        "max": 600,
+        "step": 1,
+        "defaultValue": 5
+      }
+    ]
+  }
+}
