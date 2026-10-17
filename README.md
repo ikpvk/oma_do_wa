@@ -27,3 +27,25 @@ IPC: `omarchy-shell nausica.compose-monitor toggle|refresh|updates`
 ```bash
 omarchy plugin add https://github.com/ikpvk/oma_do_wa.git --enable
 ```
+
+## Uninstall
+
+1. Remove the plugin (this also takes it off the bar):
+
+   ```bash
+   omarchy plugin remove nausica.compose-monitor
+   ```
+
+2. `remove` keeps a backup of the plugin folder. Delete it if you don't need it:
+
+   ```bash
+   rm -rf ~/.config/omarchy/plugins/.nausica.compose-monitor.bak.*
+   ```
+
+3. Optionally delete the saved watch list and update-check results:
+
+   ```bash
+   rm -rf ~/.local/state/nausica.compose-monitor
+   ```
+
+Uninstalling never touches your compose stacks — containers, images and volumes stay as they are.
